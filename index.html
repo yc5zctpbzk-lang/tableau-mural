@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tableau mural Maison</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Maison">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;500&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout : écran mural allumé en permanence, paysage 1366×1024. Colonne gauche = heure + météo, droite = grille de scènes tactiles, bandeau message en bas. Look sombre volontaire (une seule ambiance, « lampe du soir »). */
+:root {
+  color-scheme: dark;
+  --bg: #0f1418;          /* nuit bleu ardoise */
+  --surface: #172027;     /* tuiles */
+  --surface-press: #22303a;
+  --line: #26333d;
+  --fg: #e9eef1;
+  --muted: #8a9aa5;
+  --accent: #f0b35a;      /* ambre, comme une lampe allumée */
+  --accent-soft: rgba(240,179,90,.14);
+  --font-display: "Outfit", "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, "Helvetica Neue", system-ui, sans-serif;
+  --radius: 22px;
+}
+html, body { height: 100%; margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+.app {
+  box-sizing: border-box;
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  grid-template-rows: 1fr auto;
+  gap: 28px 40px;
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  padding-right: max(32px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 28px;
+  transition: opacity .6s ease;
+}
+
+/* ---------- Colonne heure + météo ---------- */
+.left { display: flex; flex-direction: column; justify-content: space-between; gap: 28px; min-width: 0; }
+.clock {
+  font-family: var(--font-display);
+  font-weight: 200;
+  font-size: clamp(88px, 14vw, 196px);
+  line-height: .9;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.clock .sep { color: var(--accent); }
+.date {
+  margin-top: 14px;
+  font-size: clamp(20px, 2.1vw, 28px);
+  color: var(--muted);
+}
+.weather { display: flex; flex-direction: column; gap: 18px; }
+.now { display: flex; align-items: center; gap: 22px; }
+.now svg { width: 72px; height: 72px; flex: none; color: var(--accent); }
+.temp { font-family: var(--font-display); font-weight: 300; font-size: 64px; line-height: 1; font-variant-numeric: tabular-nums; }
+.cond { font-size: 18px; color: var(--muted); margin-top: 6px; }
+.hours { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
+.hour { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hour .h { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hour svg { width: 28px; height: 28px; color: var(--fg); opacity: .85; }
+.hour .t { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.wx-note { font-size: 13px; color: var(--muted); letter-spacing: .02em; }
+
+/* ---------- Grille de scènes ---------- */
+.right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.label { font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.scenes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(130px, 1fr);
+  gap: 16px;
+}
+.scene {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  text-decoration: none;
+  transition: transform .12s ease, background .12s ease, border-color .2s ease;
+}
+.scene:active, .scene.pressed { transform: scale(.97); background: var(--surface-press); border-color: var(--accent); }
+.scene:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.scene .ic {
+  width: 52px; height: 52px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.scene .ic svg { width: 28px; height: 28px; }
+.scene .name { font-family: var(--font-display); font-weight: 500; font-size: 26px; line-height: 1.1; }
+.scene .sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- Bandeau message ---------- */
+.message {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 18px;
+  padding: 18px 24px;
+  border-top: 1px solid var(--line);
+}
+.message .label { flex: none; }
+.message p {
+  margin: 0; flex: 1; min-width: 0;
+  font-size: 20px; line-height: 1.4;
+  outline: none; border-radius: 8px;
+  -webkit-user-select: text; user-select: text;
+}
+.message p:focus { background: var(--surface); box-shadow: 0 0 0 8px var(--surface); }
+.night-btn {
+  flex: none; font: inherit; font-size: 14px; color: var(--muted);
+  background: none; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px;
+}
+.night-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 20px); opacity: 0;
+  background: var(--fg); color: var(--bg);
+  padding: 12px 20px; border-radius: 999px; font-weight: 500;
+  transition: opacity .25s ease, transform .25s ease; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Mode nuit ---------- */
+.nightclock {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  font-family: var(--font-display); font-weight: 200;
+  color: #6f5a3c;  /* ambre très atténué : lisible sans éclairer la pièce */
+  background: #05070a;
+  opacity: 0; pointer-events: none; transition: opacity .8s ease;
+}
+.nightclock .c { font-size: clamp(96px, 18vw, 240px); line-height: 1; font-variant-numeric: tabular-nums; }
+.nightclock .hint { font-family: var(--font-body); font-size: 14px; color: #3a3328; }
+body.night .nightclock { opacity: 1; pointer-events: auto; }
+body.night .app { opacity: 0; }
+
+/* ---------- Portrait et petits écrans ---------- */
+@media (orientation: portrait), (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; }
+  .scenes { grid-auto-rows: minmax(120px, 1fr); }
+}
+@media (max-width: 560px) {
+  .app { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); gap: 24px; }
+  .scenes { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
+  .scene { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; padding: 16px; }
+  .scene .name { font-size: 20px; }
+  .hours { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .message { flex-wrap: wrap; padding-inline: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <section class="left">
+    <div>
+      <div class="clock" id="clock">--<span class="sep">:</span>--</div>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="weather" id="weather">
+      <div class="now">
+        <span id="wx-icon"></span>
+        <div>
+          <div class="temp" id="wx-temp">--°</div>
+          <div class="cond" id="wx-cond">Chargement de la météo…</div>
+        </div>
+      </div>
+      <div class="hours" id="wx-hours"></div>
+      <div class="wx-note" id="wx-note"></div>
+    </div>
+  </section>
+
+  <section class="right">
+    <div class="label">Scènes</div>
+    <div class="scenes" id="scenes"></div>
+  </section>
+
+  <footer class="message">
+    <span class="label">Mot du jour</span>
+    <p id="msg" contenteditable="true" spellcheck="false">Poubelle jaune ce soir · Rendez-vous dentiste jeudi 17 h</p>
+    <button class="night-btn" id="night-btn" type="button">Aperçu nuit</button>
+  </footer>
+</div>
+
+<div class="nightclock" id="nightclock">
+  <div class="c" id="nclock">--:--</div>
+  <div class="hint">Touchez l'écran pour l'afficher en entier</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   RÉGLAGES — à modifier selon votre maison
+   ========================================================= */
+var VILLE = { nom: "Paris", lat: 48.8566, lon: 2.3522 };
+var NUIT_DEBUT = 22;   // heure de passage en mode nuit
+var NUIT_FIN = 7;      // heure de retour en mode jour
+var REVEIL_SECONDES = 30;
+
+// Chaque bouton lance le Raccourci qui porte exactement ce nom.
+var SCENES = [
+  { nom: "Je pars",        detail: "Tout éteindre, alarme",   raccourci: "Je pars",        icone: "door" },
+  { nom: "Je rentre",      detail: "Entrée et salon allumés", raccourci: "Je rentre",      icone: "home" },
+  { nom: "Bonne nuit",     detail: "Volets, lumières, 19 °C", raccourci: "Bonne nuit",     icone: "moon" },
+  { nom: "Cinéma",         detail: "Lumières tamisées, Apple TV", raccourci: "Cinéma",     icone: "tv" },
+  { nom: "Lumières salon", detail: "Allumer / éteindre",      raccourci: "Lumières salon", icone: "bulb" },
+  { nom: "Musique",        detail: "Playlist sur le HomePod", raccourci: "Musique",        icone: "music" }
+];
+
+/* ========================================================= */
+var ICONS = {
+  door:  '<path d="M6 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M3 21h18M13 12h.01"/><path d="M16 7h3v14"/>',
+  home:  '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
+  moon:  '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  tv:    '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  bulb:  '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  sun:   '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  partly:'<path d="M12 3v1.5M5.6 5.6l1 1M3 12h1.5M17.4 6.6l1-1"/><path d="M8 11a4 4 0 0 1 7.4-2"/><path d="M8 20h9a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6 1.5A3 3 0 0 0 8 20z"/>',
+  cloud: '<path d="M7 19h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 19z"/>',
+  fog:   '<path d="M4 10h16M3 14h18M5 18h14"/><path d="M7 6h10"/>',
+  rain:  '<path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/>',
+  snow:  '<path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 15z"/><path d="M8 19h.01M12 21h.01M16 19h.01"/>',
+  storm: '<path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 15z"/><path d="M12 15l-2 4h3l-2 4"/>'
+};
+function svg(name) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || "") + '</svg>';
+}
+
+/* ---------- Scènes ---------- */
+var toastEl = document.getElementById("toast"), toastTimer;
+function toast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+}
+var grid = document.getElementById("scenes");
+SCENES.forEach(function (s) {
+  var a = document.createElement("a");
+  a.className = "scene";
+  a.href = "shortcuts://run-shortcut?name=" + encodeURIComponent(s.raccourci);
+  a.innerHTML = '<span class="ic">' + svg(s.icone) + '</span><span><div class="name"></div><div class="sub"></div></span>';
+  a.querySelector(".name").textContent = s.nom;
+  a.querySelector(".sub").textContent = s.detail;
+  a.addEventListener("click", function () {
+    a.classList.add("pressed");
+    setTimeout(function () { a.classList.remove("pressed"); }, 180);
+    toast("Ouverture du raccourci « " + s.raccourci + " »");
+  });
+  grid.appendChild(a);
+});
+
+/* ---------- Heure ---------- */
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function tick() {
+  var d = new Date();
+  var hm = pad(d.getHours()) + '<span class="sep">:</span>' + pad(d.getMinutes());
+  document.getElementById("clock").innerHTML = hm;
+  document.getElementById("nclock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  var ds = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  document.getElementById("date").textContent = ds.charAt(0).toUpperCase() + ds.slice(1);
+  updateNight(d);
+}
+
+/* ---------- Mode nuit ---------- */
+var forceNight = location.hash === "#nuit";
+var previewNight = false;
+var awakeUntil = 0;
+function isNightHour(d) { var h = d.getHours(); return NUIT_DEBUT > NUIT_FIN ? (h >= NUIT_DEBUT || h < NUIT_FIN) : (h >= NUIT_DEBUT && h < NUIT_FIN); }
+function updateNight(d) {
+  var night = previewNight || ((forceNight || isNightHour(d)) && Date.now() > awakeUntil);
+  document.body.classList.toggle("night", night);
+}
+document.getElementById("nightclock").addEventListener("click", function () {
+  previewNight = false;
+  awakeUntil = Date.now() + REVEIL_SECONDES * 1000;
+  updateNight(new Date());
+  setTimeout(function () { updateNight(new Date()); }, REVEIL_SECONDES * 1000 + 50);
+});
+document.getElementById("night-btn").addEventListener("click", function () {
+  previewNight = true; awakeUntil = 0; updateNight(new Date());
+});
+window.addEventListener("hashchange", function () { forceNight = location.hash === "#nuit"; updateNight(new Date()); });
+
+/* ---------- Météo (Open-Meteo, sans clé) ---------- */
+var WMO = function (c) {
+  if (c === 0) return ["sun", "Ensoleillé"];
+  if (c <= 2) return ["partly", "Éclaircies"];
+  if (c === 3) return ["cloud", "Couvert"];
+  if (c <= 48) return ["fog", "Brouillard"];
+  if (c <= 57) return ["rain", "Bruine"];
+  if (c <= 67) return ["rain", "Pluie"];
+  if (c <= 77) return ["snow", "Neige"];
+  if (c <= 82) return ["rain", "Averses"];
+  if (c <= 86) return ["snow", "Averses de neige"];
+  return ["storm", "Orage"];
+};
+function renderWeather(now, hours, note) {
+  var w = WMO(now.code);
+  document.getElementById("wx-icon").innerHTML = svg(w[0]);
+  document.getElementById("wx-temp").textContent = Math.round(now.temp) + "°";
+  document.getElementById("wx-cond").textContent = w[1] + " · " + VILLE.nom;
+  document.getElementById("wx-hours").innerHTML = hours.map(function (h) {
+    return '<div class="hour"><span class="h">' + h.h + ' h</span>' + svg(WMO(h.code)[0]) + '<span class="t">' + Math.round(h.temp) + '°</span></div>';
+  }).join("");
+  document.getElementById("wx-note").textContent = note || "";
+}
+function sampleWeather() {
+  var h = new Date().getHours();
+  var codes = [2, 3, 61, 3, 2], temps = [9, 10, 10, 8, 7];
+  renderWeather({ temp: 9, code: 2 },
+    codes.map(function (c, i) { return { h: (h + 1 + i * 2) % 24, code: c, temp: temps[i] }; }),
+    "Exemple : la météo réelle s'affiche une fois la page installée sur l'iPad.");
+}
+function loadWeather() {
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + VILLE.lat + "&longitude=" + VILLE.lon +
+    "&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto";
+  var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+  fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function (d) {
+    clearTimeout(t);
+    var start = d.hourly.time.indexOf(d.current.time.slice(0, 13) + ":00");
+    if (start < 0) start = 0;
+    var hours = [];
+    for (var i = 1; i <= 9 && start + i < d.hourly.time.length; i += 2) {
+      hours.push({ h: parseInt(d.hourly.time[start + i].slice(11, 13), 10), code: d.hourly.weather_code[start + i], temp: d.hourly.temperature_2m[start + i] });
+    }
+    renderWeather({ temp: d.current.temperature_2m, code: d.current.weather_code }, hours,
+      "Mis à jour à " + pad(new Date().getHours()) + ":" + pad(new Date().getMinutes()));
+  }).catch(function () { clearTimeout(t); sampleWeather(); });
+}
+
+/* ---------- Mot du jour (gardé sur cet iPad) ---------- */
+var msg = document.getElementById("msg");
+try { var saved = localStorage.getItem("mot-du-jour"); if (saved) msg.textContent = saved; } catch (e) {}
+msg.addEventListener("input", function () { try { localStorage.setItem("mot-du-jour", msg.textContent); } catch (e) {} });
+
+/* ---------- Écran toujours allumé (si Safari l'autorise) ---------- */
+function keepAwake() {
+  try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(function () {}); } catch (e) {}
+}
+document.addEventListener("visibilitychange", function () { if (!document.hidden) { keepAwake(); loadWeather(); } });
+
+tick(); setInterval(tick, 1000);
+loadWeather(); setInterval(loadWeather, 30 * 60 * 1000);
+keepAwake();
+</script>
+</body>
+</html>
